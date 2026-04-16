@@ -219,17 +219,34 @@ const reposition = async () => {
 }
 
 // Handle resize events (still needed for viewport size changes)
+const hideTooltip = () => {
+  hidden.value = true
+  targetElement.value = null
+  window.dispatchEvent(new CustomEvent('clear-data-point-selection'))
+}
+
 const handleResize = () => {
+  updatePosition()
+}
+
+const handleScroll = () => {
+  if (!targetElement.value) return
+  if (!targetElement.value.isConnected) {
+    hideTooltip()
+    return
+  }
   updatePosition()
 }
 
 // Lifecycle hooks
 onMounted(() => {
   window.addEventListener('resize', handleResize)
+  window.addEventListener('scroll', handleScroll, true)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  window.removeEventListener('scroll', handleScroll, true)
 })
 
 // Watchers
@@ -267,7 +284,6 @@ watch(() => [props.isPersistent, props.result], ([isPersistent, result]) => {
 
 // Watch for route changes and hide tooltip
 watch(() => route.path, () => {
-  hidden.value = true
-  targetElement.value = null
+  hideTooltip()
 })
 </script>

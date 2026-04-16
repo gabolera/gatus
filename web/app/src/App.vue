@@ -236,7 +236,7 @@ const handleDocumentClick = (event) => {
   if (tooltipIsPersistent.value) {
     const tooltipElement = document.getElementById('tooltip')
     // Check if click is on a data point bar or inside tooltip
-    const clickedDataPoint = event.target.closest('.flex-1.h-6, .flex-1.h-8')
+    const clickedDataPoint = event.target.closest('.data-point-bar')
 
     if (tooltipElement && !tooltipElement.contains(event.target) && !clickedDataPoint) {
       tooltip.value = {}

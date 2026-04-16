@@ -38,7 +38,7 @@
               v-for="(result, index) in displayResults"
               :key="index"
               :class="[
-                'flex-1 h-6 sm:h-8 rounded-sm transition-all',
+                'data-point-bar flex-1 h-6 sm:h-8 rounded-sm transition-all',
                 result ? 'cursor-pointer' : '',
                 result ? (
                   result.success
