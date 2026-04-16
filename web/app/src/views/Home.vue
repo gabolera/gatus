@@ -192,6 +192,7 @@ const endpointStatuses = ref([])
 const suiteStatuses = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
+const debouncedSearchQuery = ref('')
 const showOnlyFailing = ref(false)
 const showRecentFailures = ref(false)
 const showAverageResponseTime = ref(localStorage.getItem('gatus:show-average-response-time') !== 'false')
@@ -202,12 +203,14 @@ const resultPageSize = 50
 const virtualListRef = ref(null)
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1280)
 const listOffsetTop = ref(0)
+const SEARCH_DEBOUNCE_MS = 300
+let searchDebounceTimeout = null
 
 const filteredEndpoints = computed(() => {
   let filtered = [...endpointStatuses.value]
   
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
+  if (debouncedSearchQuery.value) {
+    const query = debouncedSearchQuery.value.toLowerCase()
     filtered = filtered.filter(endpoint => 
       endpoint.name.toLowerCase().includes(query) ||
       (endpoint.group && endpoint.group.toLowerCase().includes(query))
@@ -250,8 +253,8 @@ const filteredEndpoints = computed(() => {
 const filteredSuites = computed(() => {
   let filtered = [...(suiteStatuses.value || [])]
   
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
+  if (debouncedSearchQuery.value) {
+    const query = debouncedSearchQuery.value.toLowerCase()
     filtered = filtered.filter(suite => 
       suite.name.toLowerCase().includes(query) ||
       (suite.group && suite.group.toLowerCase().includes(query))
@@ -382,7 +385,7 @@ const combinedGroups = computed(() => {
 const estimateRowSize = (row) => {
   if (!row) return 140
   if (row.type === 'section-header') return 40
-  return 240
+  return 185
 }
 
 const rowVirtualizer = useWindowVirtualizer(computed(() => ({
@@ -442,6 +445,12 @@ const refreshData = () => {
 
 const handleSearch = (query) => {
   searchQuery.value = query
+  if (searchDebounceTimeout) {
+    clearTimeout(searchDebounceTimeout)
+  }
+  searchDebounceTimeout = setTimeout(() => {
+    debouncedSearchQuery.value = query
+  }, SEARCH_DEBOUNCE_MS)
 }
 
 const toggleShowAverageResponseTime = () => {
@@ -526,11 +535,16 @@ const dashboardSubheading = computed(() => {
 
 onMounted(() => {
   fetchData()
+  debouncedSearchQuery.value = searchQuery.value
   updateViewportMetrics()
   window.addEventListener('resize', updateViewportMetrics)
 })
 
 onUnmounted(() => {
+  if (searchDebounceTimeout) {
+    clearTimeout(searchDebounceTimeout)
+    searchDebounceTimeout = null
+  }
   window.removeEventListener('resize', updateViewportMetrics)
 })
 
@@ -546,7 +560,7 @@ watch(virtualRows, async () => {
   rowVirtualizer.measure()
 }, { deep: true })
 
-watch([searchQuery, showOnlyFailing, showRecentFailures, groupByGroup, sortBy], () => {
+watch([debouncedSearchQuery, showOnlyFailing, showRecentFailures, groupByGroup, sortBy], () => {
   scrollToVirtualListTop()
 })
 </script>
