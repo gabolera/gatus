@@ -107,6 +107,7 @@
               v-for="virtualRow in rowVirtualizer.getVirtualItems()"
               :key="virtualRows[virtualRow.index]?.key || virtualRow.key"
               :ref="(el) => rowVirtualizer.measureElement(el)"
+              :data-index="virtualRow.index"
               class="absolute left-0 top-0 w-full"
               :style="{ transform: `translateY(${Math.max(0, virtualRow.start - listOffsetTop)}px)` }"
             >
@@ -491,7 +492,7 @@ const toggleGroupCollapse = (groupName) => {
   const uncollapsed = Array.from(uncollapsedGroups.value)
   localStorage.setItem('gatus:uncollapsed-groups', JSON.stringify(uncollapsed))
   localStorage.removeItem('gatus:collapsed-groups') // Remove old key if it exists
-  nextTick(() => rowVirtualizer.measure())
+  nextTick(() => rowVirtualizer.value.measure())
 }
 
 const initializeCollapsedGroups = () => {
@@ -551,13 +552,13 @@ onUnmounted(() => {
 watch(columnsPerRow, async () => {
   await nextTick()
   updateViewportMetrics()
-  rowVirtualizer.measure()
+  rowVirtualizer.value.measure()
 })
 
 watch(virtualRows, async () => {
   await nextTick()
   updateViewportMetrics()
-  rowVirtualizer.measure()
+  rowVirtualizer.value.measure()
 }, { deep: true })
 
 watch([debouncedSearchQuery, showOnlyFailing, showRecentFailures, groupByGroup, sortBy], () => {
