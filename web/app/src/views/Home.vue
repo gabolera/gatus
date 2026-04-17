@@ -99,11 +99,11 @@
                 <div
                   :class="[
                     virtualRows[virtualRow.index].className,
-                    virtualRows[virtualRow.index].group ? 'bg-card border-x border-border px-4' : '',
+                    virtualRows[virtualRow.index].group ? 'bg-card border-x border-border' : '',
                     virtualRows[virtualRow.index].isGroupFirst ? 'border-t border-border' : ''
                   ]"
                 >
-                  <h2 class="text-lg font-semibold text-foreground">{{ virtualRows[virtualRow.index].title }}</h2>
+                  <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider pb-2 pt-3 px-4">{{ virtualRows[virtualRow.index].title }}</h2>
                 </div>
               </template>
               <template v-else-if="virtualRows[virtualRow.index]?.type === 'suite-row'">
@@ -206,6 +206,7 @@ const groupByGroup = ref(false)
 const sortBy = ref(localStorage.getItem('gatus:sort-by') || 'name')
 const uncollapsedGroups = ref(new Set())
 const resultPageSize = 50
+const isPreservingScrollDuringRefresh = ref(false)
 
 const virtualListRef = ref(null)
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1280)
@@ -347,6 +348,12 @@ const combinedGroups = computed(() => {
 const fetchData = async () => {
   // Don't show loading state on refresh to prevent UI flicker
   const isInitialLoad = endpointStatuses.value.length === 0 && suiteStatuses.value.length === 0
+  const shouldPreserveScroll = !isInitialLoad && typeof window !== 'undefined'
+  const previousScrollY = shouldPreserveScroll ? window.scrollY : 0
+  const previousScrollX = shouldPreserveScroll ? window.scrollX : 0
+  if (shouldPreserveScroll) {
+    isPreservingScrollDuringRefresh.value = true
+  }
   if (isInitialLoad) {
     loading.value = true
   }
@@ -375,11 +382,28 @@ const fetchData = async () => {
         suiteStatuses.value = []
       }
     }
+
+    if (shouldPreserveScroll) {
+      await nextTick()
+      rowVirtualizer.value.measure()
+      window.scrollTo({ top: previousScrollY, left: previousScrollX, behavior: 'auto' })
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: previousScrollY, left: previousScrollX, behavior: 'auto' })
+        setTimeout(() => {
+          window.scrollTo({ top: previousScrollY, left: previousScrollX, behavior: 'auto' })
+        }, 0)
+      })
+    }
   } catch (error) {
     console.error('[Home][fetchData] Error:', error)
   } finally {
     if (isInitialLoad) {
       loading.value = false
+    }
+    if (shouldPreserveScroll) {
+      requestAnimationFrame(() => {
+        isPreservingScrollDuringRefresh.value = false
+      })
     }
   }
 }
@@ -646,7 +670,9 @@ watch(columnsPerRow, async () => {
 
 watch(virtualRows, async () => {
   await nextTick()
-  updateViewportMetrics()
+  if (isPreservingScrollDuringRefresh.value) {
+    return
+  }
   rowVirtualizer.value.measure()
 }, { flush: 'post' })
 
