@@ -35,21 +35,35 @@
         />
       </div>
 
-      <div v-if="loading" class="flex items-center justify-center py-20">
-        <Loading size="lg" />
-      </div>
+      <!-- Stable min-height + skeleton reduces CLS when data replaces loading state -->
+      <div class="min-h-[min(70vh,720px)]">
+        <div v-if="loading" class="relative pt-4" aria-busy="true" aria-label="Loading dashboard">
+          <div class="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              v-for="n in 6"
+              :key="n"
+              class="h-52 rounded-lg border border-border bg-muted/50 animate-pulse dark:bg-muted/20"
+            />
+          </div>
+          <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <Loading size="lg" />
+          </div>
+        </div>
 
-      <div v-else-if="filteredEndpoints.length === 0 && filteredSuites.length === 0" class="text-center py-20">
-        <AlertCircle class="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h3 class="text-lg font-semibold mb-2">No endpoints or suites found</h3>
-        <p class="text-muted-foreground">
-          {{ searchQuery || showOnlyFailing || showRecentFailures 
-            ? 'Try adjusting your filters' 
-            : 'No endpoints or suites are configured' }}
-        </p>
-      </div>
+        <div
+          v-else-if="filteredEndpoints.length === 0 && filteredSuites.length === 0"
+          class="flex flex-col items-center justify-center py-20 text-center"
+        >
+          <AlertCircle class="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 class="text-lg font-semibold mb-2">No endpoints or suites found</h3>
+          <p class="text-muted-foreground">
+            {{ searchQuery || showOnlyFailing || showRecentFailures 
+              ? 'Try adjusting your filters' 
+              : 'No endpoints or suites are configured' }}
+          </p>
+        </div>
 
-      <div v-else>
+        <div v-else>
         <!-- Grouped view: keep stable non-virtual layout -->
         <div v-if="groupByGroup" class="space-y-6">
           <div v-for="(items, group) in combinedGroups" :key="group" class="endpoint-group border rounded-lg overflow-hidden">
@@ -106,7 +120,6 @@
             <div
               v-for="virtualRow in rowVirtualizer.getVirtualItems()"
               :key="virtualRows[virtualRow.index]?.key || virtualRow.key"
-              :ref="(el) => rowVirtualizer.measureElement(el)"
               :data-index="virtualRow.index"
               class="absolute left-0 top-0 w-full"
               :style="{ transform: `translateY(${Math.max(0, virtualRow.start - listOffsetTop)}px)` }"
@@ -146,6 +159,7 @@
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       <!-- Past Announcements Section -->
@@ -205,7 +219,9 @@ const virtualListRef = ref(null)
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1280)
 const listOffsetTop = ref(0)
 const SEARCH_DEBOUNCE_MS = 300
+const RESIZE_DEBOUNCE_MS = 120
 let searchDebounceTimeout = null
+let resizeDebounceTimeout = null
 
 const filteredEndpoints = computed(() => {
   let filtered = [...endpointStatuses.value]
@@ -384,16 +400,17 @@ const combinedGroups = computed(() => {
 })
 
 const estimateRowSize = (row) => {
-  if (!row) return 140
-  if (row.type === 'section-header') return 40
-  return 185
+  if (!row) return 160
+  if (row.type === 'section-header') return 44
+  // Card row ~ grid row height (cards ~13rem) + mb-3; tuned for virtualizer without measureElement
+  return 212
 }
 
 const rowVirtualizer = useWindowVirtualizer(computed(() => ({
   count: flatRows.value.length,
   getItemKey: (index) => flatRows.value[index]?.key || index,
   estimateSize: (index) => estimateRowSize(flatRows.value[index]),
-  overscan: 6,
+  overscan: 3,
   scrollMargin: listOffsetTop.value
 })))
 
@@ -404,27 +421,26 @@ const fetchData = async () => {
     loading.value = true
   }
   try {
-    // Fetch endpoints
-    const endpointResponse = await fetch(`/api/v1/endpoints/statuses?page=1&pageSize=${resultPageSize}`, {
-      credentials: 'include'
-    })
+    const [endpointResponse, suiteResponse] = await Promise.all([
+      fetch(`/api/v1/endpoints/statuses?page=1&pageSize=${resultPageSize}`, {
+        credentials: 'include'
+      }),
+      fetch(`/api/v1/suites/statuses?page=1&pageSize=${resultPageSize}`, {
+        credentials: 'include'
+      })
+    ])
+
     if (endpointResponse.status === 200) {
-      const data = await endpointResponse.json()
-      endpointStatuses.value = data
+      endpointStatuses.value = await endpointResponse.json()
     } else {
       console.error('[Home][fetchData] Error fetching endpoints:', await endpointResponse.text())
     }
-    
-    // Fetch suites
-    const suiteResponse = await fetch(`/api/v1/suites/statuses?page=1&pageSize=${resultPageSize}`, {
-      credentials: 'include'
-    })
+
     if (suiteResponse.status === 200) {
       const suiteData = await suiteResponse.json()
       suiteStatuses.value = suiteData || []
     } else {
       console.error('[Home][fetchData] Error fetching suites:', await suiteResponse.text())
-      // Ensure suiteStatuses stays as empty array instead of becoming null/undefined
       if (!suiteStatuses.value) {
         suiteStatuses.value = []
       }
@@ -520,6 +536,17 @@ const updateViewportMetrics = () => {
   }
 }
 
+const scheduleViewportMetricsUpdate = () => {
+  if (typeof window === 'undefined') return
+  if (resizeDebounceTimeout) {
+    clearTimeout(resizeDebounceTimeout)
+  }
+  resizeDebounceTimeout = setTimeout(() => {
+    resizeDebounceTimeout = null
+    updateViewportMetrics()
+  }, RESIZE_DEBOUNCE_MS)
+}
+
 const scrollToVirtualListTop = () => {
   if (typeof window === 'undefined') return
   const targetTop = Math.max(listOffsetTop.value - 16, 0)
@@ -538,7 +565,7 @@ onMounted(() => {
   fetchData()
   debouncedSearchQuery.value = searchQuery.value
   updateViewportMetrics()
-  window.addEventListener('resize', updateViewportMetrics)
+  window.addEventListener('resize', scheduleViewportMetricsUpdate)
 })
 
 onUnmounted(() => {
@@ -546,7 +573,11 @@ onUnmounted(() => {
     clearTimeout(searchDebounceTimeout)
     searchDebounceTimeout = null
   }
-  window.removeEventListener('resize', updateViewportMetrics)
+  if (resizeDebounceTimeout) {
+    clearTimeout(resizeDebounceTimeout)
+    resizeDebounceTimeout = null
+  }
+  window.removeEventListener('resize', scheduleViewportMetricsUpdate)
 })
 
 watch(columnsPerRow, async () => {
@@ -555,11 +586,11 @@ watch(columnsPerRow, async () => {
   rowVirtualizer.value.measure()
 })
 
-watch(virtualRows, async () => {
+watch(flatRows, async () => {
   await nextTick()
   updateViewportMetrics()
   rowVirtualizer.value.measure()
-}, { deep: true })
+}, { flush: 'post' })
 
 watch([debouncedSearchQuery, showOnlyFailing, showRecentFailures, groupByGroup, sortBy], () => {
   scrollToVirtualListTop()
