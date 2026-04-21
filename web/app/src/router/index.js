@@ -1,23 +1,20 @@
 import {createRouter, createWebHistory} from 'vue-router'
-import Home from '@/views/Home'
-import EndpointDetails from "@/views/EndpointDetails";
-import SuiteDetails from '@/views/SuiteDetails';
 
 const routes = [
     {
         path: '/',
         name: 'Home',
-        component: Home
+        component: () => import('@/views/Home.vue')
     },
     {
         path: '/endpoints/:key',
         name: 'EndpointDetails',
-        component: EndpointDetails,
+        component: () => import('@/views/EndpointDetails.vue'),
     },
     {
         path: '/suites/:key',
         name: 'SuiteDetails',
-        component: SuiteDetails
+        component: () => import('@/views/SuiteDetails.vue')
     }
 ];
 

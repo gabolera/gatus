@@ -142,18 +142,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft, RefreshCw, AlertCircle, ChevronRight } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import StatusBadge from '@/components/StatusBadge.vue'
-import SequentialFlowDiagram from '@/components/SequentialFlowDiagram.vue'
-import StepDetailsModal from '@/components/StepDetailsModal.vue'
 import Settings from '@/components/Settings.vue'
 import Loading from '@/components/Loading.vue'
 import { generatePrettyTimeAgo } from '@/utils/time'
 import { formatDuration } from '@/utils/format'
+
+const SequentialFlowDiagram = defineAsyncComponent(() => import('@/components/SequentialFlowDiagram.vue'))
+const StepDetailsModal = defineAsyncComponent(() => import('@/components/StepDetailsModal.vue'))
 
 const router = useRouter()
 const route = useRoute()
