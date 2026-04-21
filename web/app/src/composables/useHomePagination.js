@@ -16,18 +16,16 @@ export const useHomePagination = ({
     if (groupByGroup.value) {
       return filteredEndpoints.value
     }
-    const start = (currentPage.value - 1) * itemsPerPage.value
-    const end = start + itemsPerPage.value
-    return filteredEndpoints.value.slice(start, end)
+    const visibleCount = currentPage.value * itemsPerPage.value
+    return filteredEndpoints.value.slice(0, visibleCount)
   })
 
   const paginatedSuites = computed(() => {
     if (groupByGroup.value) {
       return filteredSuites.value
     }
-    const start = (currentPage.value - 1) * itemsPerPage.value
-    const end = start + itemsPerPage.value
-    return filteredSuites.value.slice(start, end)
+    const visibleCount = currentPage.value * itemsPerPage.value
+    return filteredSuites.value.slice(0, visibleCount)
   })
 
   const visiblePages = computed(() => {

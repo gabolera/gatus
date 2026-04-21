@@ -64,17 +64,14 @@
 
         <HomeCardsView
           v-else
-          :filteredSuites="filteredSuites"
-          :filteredEndpoints="filteredEndpoints"
-          :paginatedSuites="paginatedSuites"
+                    :paginatedSuites="paginatedSuites"
           :paginatedEndpoints="paginatedEndpoints"
           :resultPageSize="resultPageSize"
           :showAverageResponseTime="showAverageResponseTime"
-          :totalPages="totalPages"
-          :currentPage="currentPage"
-          :visiblePages="visiblePages"
+                    :currentPage="currentPage"
+          :hasMore="hasMoreCards"
           @showTooltip="showTooltip"
-          @goToPage="goToPage"
+          @loadMore="loadMoreCards"
         />
       </div>
 
@@ -153,8 +150,7 @@ const {
 const {
   totalPages,
   paginatedEndpoints,
-  paginatedSuites,
-  visiblePages
+  paginatedSuites
 } = useHomePagination({
   filteredEndpoints,
   filteredSuites,
@@ -162,6 +158,8 @@ const {
   currentPage,
   itemsPerPage
 })
+
+const hasMoreCards = computed(() => currentPage.value < totalPages.value)
 
 const filterCacheKey = computed(() => {
   return `${debouncedQuery.value}|${sortBy.value}|${showOnlyFailing.value}|${showRecentFailures.value}`
@@ -237,9 +235,11 @@ const handleSearch = (query) => {
   searchInput.value = query
 }
 
-const goToPage = (page) => {
-  currentPage.value = page
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+const loadMoreCards = () => {
+  if (!hasMoreCards.value) {
+    return
+  }
+  currentPage.value += 1
 }
 
 const toggleShowAverageResponseTime = () => {
