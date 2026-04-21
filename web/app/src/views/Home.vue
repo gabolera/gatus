@@ -64,11 +64,11 @@
 
         <HomeCardsView
           v-else
-                    :paginatedSuites="paginatedSuites"
+          :paginatedSuites="paginatedSuites"
           :paginatedEndpoints="paginatedEndpoints"
           :resultPageSize="resultPageSize"
           :showAverageResponseTime="showAverageResponseTime"
-                    :currentPage="currentPage"
+          :currentPage="currentPage"
           :hasMore="hasMoreCards"
           @showTooltip="showTooltip"
           @loadMore="loadMoreCards"
@@ -119,7 +119,7 @@ const showRecentFailures = ref(false)
 const showAverageResponseTime = ref(localStorage.getItem('gatus:show-average-response-time') !== 'false')
 const groupByGroup = ref(false)
 const sortBy = ref(localStorage.getItem('gatus:sort-by') || 'name')
-const resultPageSize = 50
+const resultPageSize = parseInt(window.config.maximumNumberOfResults) > 0 ? parseInt(window.config.maximumNumberOfResults) : 50
 
 const { searchInput, debouncedQuery, createRequestSignal } = useHomeSearch({ debounceMs: 300 })
 
